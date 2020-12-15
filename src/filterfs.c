@@ -24,7 +24,6 @@
 #define _XOPEN_SOURCE 500
 #endif
 
-#include <fnmatch.h>
 #include <fuse.h>
 #include <limits.h>
 #include <stddef.h>
@@ -41,11 +40,11 @@
 #include <sys/xattr.h>
 #endif
 
+#include "filter.h"
 #define ffs_debug(f, ...) syslog(LOG_DEBUG, f, ## __VA_ARGS__)
 #define ffs_info(f, ...) syslog(LOG_INFO, f, ## __VA_ARGS__)
 #define ffs_error(f, ...) syslog(LOG_ERR, f, ## __VA_ARGS__)
 
-int default_exclude = 0;
 int debug = 0;
 char *srcdir = NULL;
 
@@ -77,116 +76,6 @@ static struct fuse_opt ffs_opts[] = {
     FUSE_OPT_END
 };
 
-struct rule {
-    char *pattern;
-    int exclude;
-    struct rule *next;
-};
-
-struct {
-    struct rule *head;
-    struct rule *tail;
-} chain;
-
-
-/**
- * Appends a single rule to the filter chain.
- */
-static int append_rule(char *pattern, int exclude)
-{
-    struct rule *rule = malloc(sizeof(struct rule));
-
-    if (!rule)
-        return -1;
-
-    rule->pattern = pattern;
-    rule->exclude = exclude;
-    rule->next = NULL;
-
-    if (!chain.head) {
-        chain.head = rule;
-        chain.tail = rule;
-    }
-    else {
-        chain.tail->next = rule;
-        chain.tail = rule;
-    }
-
-    return 0;
-}
-
-/**
- * Appends multiple rules to the filter chain.
- */
-static int append_rules(char *patterns, int exclude)
-{
-    char *str = patterns;
-
-    while (1) {
-        if (append_rule(str, exclude) == -1)
-            return -1;
-
-        if (!(str = strchr(str, ':')))
-            break;
-
-        *str = '\0';
-        str++;
-    }
-
-    return 0;
-}
-
-/**
- * Checks whether the provided path should be excluded.
- */
-static int exclude_path(const char *path)
-{
-    struct stat st, symt;
-    lstat(path, &st);
-
-    /* directories must not be filtered (currently) */
-    if (S_ISDIR(st.st_mode))
-        return 0;
-
-    /* symlinks might point to directories */
-    if (S_ISLNK(st.st_mode)) {
-        stat(path, &symt);
-
-        if (S_ISDIR(symt.st_mode))
-            return 0;
-    }
-
-    /* we only need the last part of the path */
-    char *path_tail = strrchr(path, '/');
-    if (path_tail == NULL)
-        *path_tail = *path;
-    else
-        path_tail++;
-
-    struct rule *curr_rule = chain.head;
-
-    while (curr_rule) {
-        if (fnmatch(curr_rule->pattern, path_tail, 0) == 0) {
-            return curr_rule->exclude;
-        }
-        curr_rule = curr_rule->next;
-    }
-
-    return default_exclude;
-}
-
-/**
- * Checks if str1 begins with str2. If so, returns a pointer to the end of
- * the match. Otherwise, returns null.
- */
-static const char *str_consume(const char *str1, char *str2)
-{
-    if (strncmp(str1, str2, strlen(str2)) == 0) {
-        return str1 + strlen(str2);
-    }
-
-    return 0;
-}
 
 /*
  * FUSE callback operations
