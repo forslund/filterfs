@@ -2,3 +2,4 @@
 src/filterfs.o
 /build
 .*.sw?
+CMakeFiles
