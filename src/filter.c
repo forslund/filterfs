@@ -79,10 +79,15 @@ int exclude_path(const char *path)
             return 0;
     }
 
+    const char * check = strstr(path, "//");
+    if (check == (void *)0)
+        check = path;
+
     struct rule *curr_rule = chain.head;
 
     while (curr_rule) {
-        if (fnmatch(curr_rule->pattern, path, 0) == 0) {
+        if (fnmatch(curr_rule->pattern, check, 0) == 0)
+        {
             result = curr_rule->exclude;
         }
         curr_rule = curr_rule->next;

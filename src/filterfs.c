@@ -154,6 +154,7 @@ static int ffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     struct dirent *de;
 
     char xpath[PATH_MAX];
+    char tpath[PATH_MAX];
     strncpy(xpath, srcdir, sizeof(xpath));
     strncat(xpath, path, sizeof(xpath) - strlen(xpath));
 
@@ -171,6 +172,7 @@ static int ffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
     while ((de = readdir(dp)) != NULL) {
         strncpy(xpath, srcdir, sizeof(xpath));
+        strncat(xpath, path, sizeof(xpath) - strlen(xpath));
         strncat(xpath, "/", sizeof(xpath) - 1);
         strncat(xpath, de->d_name, sizeof(xpath) - strlen(xpath));
 
@@ -179,15 +181,15 @@ static int ffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
         ffs_debug("readdir[2]: path %s (expanded %s), exclude: %s\n",
                 de->d_name, xpath, exclude ? "y" : "n");
 
-        if (exclude)
-            continue;
-
-        struct stat st;
-        memset(&st, 0, sizeof(st));
-        st.st_ino = de->d_ino;
-        st.st_mode = de->d_type << 12;
-        if (filler(buf, de->d_name, &st, 0))
-            break;
+        if (!exclude)
+        {
+            struct stat st;
+            memset(&st, 0, sizeof(st));
+            st.st_ino = de->d_ino;
+            st.st_mode = de->d_type << 12;
+            if (filler(buf, de->d_name, &st, 0))
+                break;
+        }
     }
 
     closedir(dp);
