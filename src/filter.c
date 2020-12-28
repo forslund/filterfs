@@ -8,7 +8,6 @@
 
 #include "filter.h"
 
-
 int default_exclude = 0;
 
 /**
@@ -18,23 +17,26 @@ int append_rule(char *pattern, int exclude)
 {
     struct rule *rule = malloc(sizeof(struct rule));
 
-    if (!rule)
+    if (rule)
+    {
+        rule->pattern = pattern;
+        rule->exclude = exclude;
+        rule->next = NULL;
+
+        if (!chain.head) {
+            chain.head = rule;
+            chain.tail = rule;
+        }
+        else {
+            chain.tail->next = rule;
+            chain.tail = rule;
+        }
+        return 0;
+    }
+    else
+    {
         return -1;
-
-    rule->pattern = pattern;
-    rule->exclude = exclude;
-    rule->next = NULL;
-
-    if (!chain.head) {
-        chain.head = rule;
-        chain.tail = rule;
     }
-    else {
-        chain.tail->next = rule;
-        chain.tail = rule;
-    }
-
-    return 0;
 }
 
 /**
